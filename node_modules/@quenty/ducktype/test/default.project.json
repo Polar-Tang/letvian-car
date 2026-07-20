@@ -1,0 +1,14 @@
+{
+  "name": "DuckTypeTest",
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": {
+      "$properties": {
+        "LoadStringEnabled": true
+      },
+      "ducktype": {
+        "$path": ".."
+      }
+    }
+  }
+}

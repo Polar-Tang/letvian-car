@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@quenty/binder": "^14.39.0"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "letvianPolice",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared",
+      },
+      "Nevermore": {
+        "$className": "Folder",
+        "Quenty": {
+          "$path": "node_modules/@quenty"
+        },
+        "QuentyStudios": {
+          "$path": "node_modules/@quentystudios"
+        },
+        "Custom": {
+          "$path": "src/myNeverMoreS"
+        }
+      }
+    },
+    "ServerScriptService": {
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+   
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "src/client"
+        }
+      }
+    }
+    
+  }
+}

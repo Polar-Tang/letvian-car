@@ -1,0 +1,17 @@
+{
+  "name": "MaidTest",
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": {
+      "$properties": {
+        "LoadStringEnabled": true
+      },
+      "maid": {
+        "$path": ".."
+      },
+      "Script": {
+        "$path": "scripts/Server"
+      }
+    }
+  }
+}
