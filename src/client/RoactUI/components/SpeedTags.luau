@@ -13,7 +13,7 @@ local RadarContext = require(script.Parent.Parent.Context.RadarContext.RadarCont
 -- a tag at all) is the provider's job; these are the live numbers inside one tag.
 local REFRESH_RATE = 10
 
-local TAG_SIZE = UDim2.fromOffset(230, 250)
+local TAG_SIZE = UDim2.fromOffset(200, 150)
 local SIGN_HEIGHT = 64
 local DOT_SIZE = 10
 
@@ -113,7 +113,7 @@ function SpeedTagView:render()
 		Size = TAG_SIZE,
 		-- Shift up half our height so the bottom edge (the point) sits at the
 		-- centre of the primary part.
-		SizeOffset = Vector2.new(0, 0.5),
+		SizeOffset = Vector2.new(0, 0.45),
 		AlwaysOnTop = true,
 		MaxDistance = RadarConstants.RANGE,
 	}, {
@@ -122,7 +122,6 @@ function SpeedTagView:render()
 			BackgroundColor3 = SIGN_GREEN,
 			BorderSizePixel = 1,
 			BorderColor3 = BORDER_RED,
-			ZIndex = 2,
 		}, {
 			Speed = Roact.createElement("TextLabel", {
 				Size = UDim2.new(0.3, 0, 1, 0),
@@ -159,7 +158,6 @@ function SpeedTagView:render()
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 			BorderSizePixel = 2,
 			BorderColor3 = BORDER_RED,
-			ZIndex = 2,
 		}),
 	})
 end

@@ -79,7 +79,15 @@ function TestingCar:Update(deltaTime: number)
 		speed = CarTestingConstants.DEFAULT_SPEED
 	end
 
-	local velocity = primaryPart.CFrame.LookVector * (speed * self._direction)
+	-- Flatten the look vector onto the XZ plane so a tilted primary part
+	-- can't steer the car up or down — height stays wherever it spawned.
+	local look = primaryPart.CFrame.LookVector
+	local flat = Vector3.new(look.X, 0, look.Z)
+	if flat.Magnitude < 1e-4 then
+		return
+	end
+
+	local velocity = flat.Unit * (speed * self._direction)
 	self._model:PivotTo(self._model:GetPivot() + velocity * deltaTime)
 
 	for _, part in self._parts do

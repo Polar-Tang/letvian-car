@@ -13,5 +13,5 @@ return {
 
 	-- Seconds the car drives one way before reversing to the opposite of the
 	-- primary part's look direction.
-	REVERSE_AFTER = 30,
+	REVERSE_AFTER = 3,
 }

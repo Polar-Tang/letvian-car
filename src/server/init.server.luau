@@ -36,6 +36,7 @@ InitBinders = BinderProvider.new("InitBinders", function(self, serviceBag)
 	end
 end)
 
+
 -- _G.BinderProvider is the registration KEY (binders NOT started yet). The live
 -- provider only comes back from serviceBag:GetService(...) below.
 _G.BinderProvider = InitBinders
@@ -52,6 +53,12 @@ _G.FistBag = serviceBag
 serviceBag:Init()
 
 serviceBag:Start()
+
+local AnimBinder = binderProvider:Get(CarTestingConstants.TESTING_CAR_TAG)
+AnimBinder:GetClassAddedSignal():Connect(function(binder)
+	binder:Start()
+end)
+
 
 _G.FistBag = nil
 _G.ServiceBag = serviceBag
