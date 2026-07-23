@@ -4,6 +4,9 @@ local RunService = game:GetService("RunService")
 
 local Roact = require(ReplicatedStorage.Shared.Roact)
 
+local Maid = require(ReplicatedStorage.Nevermore.Quenty.maid.Shared.Maid)
+local CharacterRoot = require(ReplicatedStorage.Shared.Public.CharacterRoot)
+local Units = require(ReplicatedStorage.Shared.Public.Units)
 local RadarConstants = require(ReplicatedStorage.Nevermore.Custom.radar.src.Shared.RadarConstants)
 
 local useContext = require(script.Parent.Parent.Context.Utils.useContext)
@@ -18,6 +21,8 @@ local SIGN_HEIGHT = 64
 local DOT_SIZE = 10
 
 local SIGN_GREEN = Color3.fromRGB(214, 234, 201)
+-- Readout background while the vehicle is at or over RadarConstants.SPEED_LIMIT.
+local SIGN_RED = Color3.fromRGB(230, 120, 120)
 local BORDER_RED = Color3.fromRGB(255, 0, 0)
 local TEXT_BLACK = Color3.fromRGB(20, 20, 20)
 
@@ -30,37 +35,50 @@ local TEXT_BLACK = Color3.fromRGB(20, 20, 20)
 local SpeedTagView = Roact.Component:extend("SpeedTagView")
 
 function SpeedTagView:init()
+	self._maid = Maid.new()
+	-- Points self.root at the live HumanoidRootPart and refreshes it on respawn
+	-- (the refresh connection lives on self._maid), so the distance readout is
+	-- taken from the current body instead of the spot the last one died.
+	CharacterRoot.bind(self)
+
 	self:setState(self:_readVehicle())
+end
+
+-- Where the reading is taken from: the player's own body, not the camera, so a
+-- panned/zoomed view doesn't change the distance. self.root is kept live by
+-- CharacterRoot (refreshed on respawn), but is briefly nil around a spawn —
+-- return nil then so _readVehicle's guard reports distance 0 rather than
+-- measuring from the origin.
+function SpeedTagView:getObserverPosition(): Vector3?
+	local root = self.root
+	return root and root.Position
 end
 
 function SpeedTagView:_readVehicle()
 	local vehicle = self.props.vehicle
 	local radarClient = self.props.radarClient
-	local camera = workspace.CurrentCamera
+	local observerPosition = self:getObserverPosition()
 
 	return {
 		speed = radarClient and radarClient:GetSpeed(vehicle) or 0,
-		distance = camera and (vehicle:GetPivot().Position - camera.CFrame.Position).Magnitude or 0,
+		distance = observerPosition and (vehicle:GetPivot().Position - observerPosition).Magnitude or 0,
 	}
 end
 
 function SpeedTagView:didMount()
 	local sinceLastRefresh = 0
-	self._connection = RunService.Heartbeat:Connect(function(deltaTime)
+	self._maid:GiveTask(RunService.Heartbeat:Connect(function(deltaTime)
 		sinceLastRefresh += deltaTime
 		if sinceLastRefresh < 1 / REFRESH_RATE then
 			return
 		end
 		sinceLastRefresh = 0
 		self:setState(self:_readVehicle())
-	end)
+	end))
 end
 
 function SpeedTagView:willUnmount()
-	if self._connection then
-		self._connection:Disconnect()
-		self._connection = nil
-	end
+	self._maid:DoCleaning()
 end
 
 -- The two info rows share one three-label layout: left text (half the row),
@@ -108,6 +126,13 @@ function SpeedTagView:render()
 		return nil
 	end
 
+	-- state.speed / state.distance are raw studs (native unit); convert to the
+	-- km/h + m the sign shows. The same km/h value decides the red flip so the
+	-- colour change lines up exactly with the number on screen.
+	local speedKmh = Units.studsPerSecondToKilometersPerHour(self.state.speed)
+	local distanceMeters = Units.studsToMeters(self.state.distance)
+	local isOverLimit = speedKmh >= RadarConstants.SPEED_LIMIT
+
 	return Roact.createElement("BillboardGui", {
 		Adornee = adornee,
 		Size = TAG_SIZE,
@@ -119,14 +144,14 @@ function SpeedTagView:render()
 	}, {
 		Sign = Roact.createElement("Frame", {
 			Size = UDim2.new(1, 0, 0, SIGN_HEIGHT),
-			BackgroundColor3 = SIGN_GREEN,
+			BackgroundColor3 = if isOverLimit then SIGN_RED else SIGN_GREEN,
 			BorderSizePixel = 1,
 			BorderColor3 = BORDER_RED,
 		}, {
 			Speed = Roact.createElement("TextLabel", {
 				Size = UDim2.new(0.3, 0, 1, 0),
 				BackgroundTransparency = 1,
-				Text = tostring(math.round(self.state.speed)),
+				Text = tostring(math.round(speedKmh)),
 				TextColor3 = TEXT_BLACK,
 				TextScaled = true,
 				Font = Enum.Font.GothamBold,
@@ -138,7 +163,7 @@ function SpeedTagView:render()
 			}, {
 				DistanceRow = infoRow(
 					UDim2.new(0, 0, 0, 0),
-					("↑ %dm"):format(math.round(self.state.distance)),
+					("↑ %dm"):format(math.round(distanceMeters)),
 					"ID: 68"
 				),
 				UnitRow = infoRow(UDim2.new(0, 0, 0.5, 0), "km/st", "HAT3"),

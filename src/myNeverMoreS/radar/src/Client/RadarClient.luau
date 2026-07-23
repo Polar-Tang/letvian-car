@@ -5,10 +5,12 @@
 -- re-renders the tree whenever the list changes.
 
 local CollectionService = game:GetService("CollectionService")
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local CarTestingConstants = require(ReplicatedStorage.Nevermore.Custom.carTesting.src.Shared.CarTestingConstants)
+-- Required by absolute path (not the loader below): it lives under
+-- ReplicatedStorage.Shared, outside the Nevermore package tree.
+local CharacterRoot = require(ReplicatedStorage.Shared.Public.CharacterRoot)
 
 local require = require(script.Parent.loader).load(script)
 
@@ -31,6 +33,11 @@ function RadarClient:Init(serviceBag)
 end
 
 function RadarClient:Start()
+	-- Keeps self.root on the live HumanoidRootPart across respawns; _scan
+	-- excludes its character from the line-of-sight rays. Connection lives on
+	-- self._maid (created in Init).
+	CharacterRoot.bind(self)
+
 	local sinceLastScan = 0
 	self._maid:GiveTask(RunService.Heartbeat:Connect(function(deltaTime)
 		sinceLastScan += deltaTime
@@ -57,13 +64,16 @@ function RadarClient:GetVehicles(): { Model }
 	return self._vehicles.Value
 end
 
--- Current display speed of a vehicle, in RadarConstants.SPEED_UNIT.
+-- Raw speed of a vehicle in studs/second: the dummy's Speed attribute is
+-- authored in studs/s, and the fallback is the live assembly magnitude. UI
+-- consumers convert to km/h (RadarConstants.SPEED_UNIT) via Units at the point
+-- they display or threshold it, so the conversion lives in exactly one place.
 function RadarClient:GetSpeed(vehicle: Model): number
 	local basePart = vehicle.PrimaryPart or vehicle:FindFirstChildWhichIsA("BasePart")
 	if not basePart then
 		return 0
 	end
-	local speed = vehicle:GetAttribute(CarTestingConstants.SPEED_ATTRIBUTE) or basePart.AssemblyLinearVelocity.Magnitude * RadarConstants.SPEED_FACTOR
+	local speed = vehicle:GetAttribute(CarTestingConstants.SPEED_ATTRIBUTE) or basePart.AssemblyLinearVelocity.Magnitude
 	return speed
 end
 
@@ -79,10 +89,11 @@ function RadarClient:_scan(): { Model }
 	local cosThreshold = math.cos(math.rad(RadarConstants.FOV_DEGREES))
 
 	-- One params object for the whole scan: the exclusions (our own character)
-	-- are constant across every candidate.
+	-- are constant across every candidate. self.root is the live HumanoidRootPart
+	-- (kept fresh by CharacterRoot); its parent is the character model to exclude.
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
-	local character = Players.LocalPlayer.Character
+	local character = self.root and self.root.Parent
 	params.FilterDescendantsInstances = if character then { character } else {}
 
 	local detected: { Model } = {}

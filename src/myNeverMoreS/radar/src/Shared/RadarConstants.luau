@@ -15,11 +15,11 @@ return {
 	-- Scans per second.
 	SCAN_RATE = 10,
 
-	-- Multiplier from studs/second to the displayed speed.
-	-- 1 stud = 0.28 m, so studs/s * 1.008 = km/h; use 0.63 for mph.
-	SPEED_FACTOR = 1,
+	-- Display unit for speed. GetSpeed returns raw studs/second; the UI converts
+	-- to this unit with Units.studsPerSecondToKilometersPerHour.
 	SPEED_UNIT = "km/h",
 
-	-- Speed at which the readout flips red and the alarm starts.
+	-- Speed at which the readout flips red and the alarm starts, in SPEED_UNIT
+	-- (km/h) — compared against the converted speed, not raw studs/second.
 	SPEED_LIMIT = 60,
 }
