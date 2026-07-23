@@ -2,6 +2,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Roact = require(ReplicatedStorage.Shared.Roact)
 
 local RadarProvider = require(script.Parent.Context.RadarContext.RadarProvider)
+local CarProvider = require(script.Parent.Context.CarContext.CarProvider)
+local CarContext = require(script.Parent.Context.CarContext.CarContext)
 local BottomBar = require(script.Parent.components.BottomBar)
 local RadarAlarm = require(script.Parent.components.RadarAlarm)
 local SpeedTags = require(script.Parent.components.SpeedTags)
@@ -23,9 +25,23 @@ function App:render()
 			SpeedTags = Roact.createElement(SpeedTags),
 			RadarAlarm = Roact.createElement(RadarAlarm),
 		}),
-		-- Outside the provider: the strip is status chrome, none of its fields
-		-- read the radar yet.
-		BottomBar = Roact.createElement(BottomBar),
+		-- The bottom strip is the car dashboard: CarProvider tracks whether the
+		-- local player is driving a CarRegister car, and the consumer mounts the
+		-- BottomBar (with that car's plate) only while they are behind the wheel.
+		CarProvider = Roact.createElement(CarProvider, {
+			carRegisterClient = self.props.carRegisterClient,
+		}, {
+			BottomBar = Roact.createElement(CarContext.Consumer, {
+				render = function(value)
+					if not value.isDriving then
+						return nil
+					end
+					return Roact.createElement(BottomBar, {
+						numberPlate = value.numberPlate,
+					})
+				end,
+			}),
+		}),
 	})
 end
 

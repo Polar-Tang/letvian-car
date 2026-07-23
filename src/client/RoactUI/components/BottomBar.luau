@@ -21,10 +21,13 @@ local MAX_TEXT_SIZE = 20
 local PADDING_CHARS = 3
 
 -- The date, the clock and the velocity are live (velocity reads the local
--- player's assembly for now — see readVelocity's TODO). The rest are static
--- stand-ins; wire them to real data (plate, unit ID, district) later.
+-- player's assembly for now — see readVelocity's TODO). The plate comes in as the
+-- `numberPlate` prop (the driven car's NumberPlate); the rest are static
+-- stand-ins; wire them to real data (unit ID, district) later.
 local LOCATION = "KVL TESTING PLACE"
 local UNIT = "KVL"
+-- Fallback plate if BottomBar is somehow mounted without a numberPlate prop; in
+-- practice the CarContext gate only mounts it while driving a plated car.
 local PATENT = "NR6767"
 local ID = "SC850-493"
 local SPEED_UNIT = "KM/ST"
@@ -110,7 +113,7 @@ function BottomBar:render()
 		{ "Separator2", SEPARATOR, SEPARATOR_COLOR },
 		{ "Unit", UNIT, TEXT_COLOR },
 		{ "Separator3", SEPARATOR, SEPARATOR_COLOR },
-		{ "Patent", PATENT, TEXT_COLOR },
+		{ "Patent", self.props.numberPlate or PATENT, TEXT_COLOR },
 		{ "Separator4", SEPARATOR, SEPARATOR_COLOR },
 		{ "Id", ID, TEXT_COLOR },
 		{ "Separator5", SEPARATOR, SEPARATOR_COLOR },

@@ -273,6 +273,35 @@ an in-session reconnect will not reliably re-bind a live session):
 Back up the file first — it holds all project state. After the restart the very
 first `get_selection` returns instead of timing out.
 
+### Correction (2026-07-23): stdio is the more robust transport, and hosts 58741 too
+
+The "stdio picks a *different* port" claim above is **wrong for `robloxstudio-mcp`
+v2.6.0+** (the version behind the "MCP Server v2.7.0 by BoshyDx" plugin). Verified
+in `dist/index.js`: the server binds `ROBLOX_STUDIO_PORT || 58741` (host
+`0.0.0.0`) via `listenWithRetry(58741, 5)` and *also* speaks stdio. So one stdio
+`robloxstudio-mcp` process serves **both** the Studio plugin (HTTP on 58741) and
+its stdio MCP client. The earlier stdio timeout was not a port clash — it was
+just that the Studio plugin had not connected to the server yet.
+
+**The real gotcha with `http` transport:** it only works if *something else* is
+already hosting 58741. Nothing auto-starts that server — a full reboot leaves
+58741 dead, the plugin panel stuck "Retrying", and every `http`-transport project
+(letvianPolice, gun_shit) dead until some **stdio** Claude session (obby,
+uncopylock, …) spawns the server and binds 58741. That is the only thing that was
+ever hosting the port.
+
+**Fix used here:** switched **letvianPolice to `stdio`**
+(`npx -y robloxstudio-mcp@latest`) so Claude spawns the server itself at session
+start — no dependency on a separate always-on process. On the next session start
+Claude binds 58741, the retrying plugin connects (panel → green), and tools work.
+Do **not** try to daemonize the server by hand from a Bash tool call: feeding it
+`< /dev/null` makes its stdio transport hit EOF and shut down immediately, and
+detached background processes get torn down when the tool call returns.
+
+Also beware `pkill -f "<pattern>"` in a one-liner: the pattern matches the very
+shell running the command (its own args contain the string), so it kills its own
+parent (exit 144) before the rest runs. Kill by explicit PID instead.
+
 ### Key tools
 
 | Tool | What it does |
@@ -315,5 +344,3 @@ the next time Rojo syncs. Use MCP tools for:
 
 Use the normal file tools (`Edit`, `Write`) for permanent code changes, and
 let Rojo push them into Studio.
-
-Shirts, Pants, Accessories, Faces, UGC Items

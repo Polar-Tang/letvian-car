@@ -8,6 +8,7 @@ local Maid = require(ReplicatedStorage.Nevermore.Quenty.maid.Shared.Maid)
 local CharacterRoot = require(ReplicatedStorage.Shared.Public.CharacterRoot)
 local Units = require(ReplicatedStorage.Shared.Public.Units)
 local RadarConstants = require(ReplicatedStorage.Nevermore.Custom.radar.src.Shared.RadarConstants)
+local GetCartNumberPlate = require(ReplicatedStorage.Nevermore.Custom.carRegister.src.Shared.GetCartNumberPlate)
 
 local useContext = require(script.Parent.Parent.Context.Utils.useContext)
 local RadarContext = require(script.Parent.Parent.Context.RadarContext.RadarContext)
@@ -166,7 +167,9 @@ function SpeedTagView:render()
 					("↑ %dm"):format(math.round(distanceMeters)),
 					"ID: 68"
 				),
-				UnitRow = infoRow(UDim2.new(0, 0, 0.5, 0), "km/st", "HAT3"),
+				-- Right cell shows the detected vehicle's plate (empty until the
+					-- server CarRegister binder stamps its NumberPlate attribute).
+					UnitRow = infoRow(UDim2.new(0, 0, 0.5, 0), "km/st", GetCartNumberPlate(vehicle)),
 			}),
 		}),
 		Line = Roact.createElement("Frame", {

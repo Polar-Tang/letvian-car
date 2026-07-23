@@ -19,6 +19,7 @@ local Binder = Nevermore("Binder")
 local BinderProvider = Nevermore("BinderProvider")
 
 local CarTestingConstants = Nevermore("CarTestingConstants")
+local CarRegisterConstants = Nevermore("CarRegisterConstants")
 
 -- tag -> constructor class. The binder calls constructor.new(taggedInstance, ...)
 -- for every Instance carrying the tag.
@@ -26,6 +27,10 @@ local Binders = {
 	-- Moving dummy the radar tracks; "binder" (lowercase) is the TestingCar
 	-- class in myNeverMoreS/carTesting, distinct from Quenty's "Binder".
 	[CarTestingConstants.TESTING_CAR_TAG] = Nevermore("binder"),
+
+	-- Real A-Chassis car: generates a plate and renders it on the front/rear
+	-- plate parts. Constructor does all the work, so no ClassAdded Start hook.
+	[CarRegisterConstants.CAR_REGISTER_TAG] = Nevermore("CarRegister"),
 }
 
 ---------- USE BINDER PROVIDER ----------
