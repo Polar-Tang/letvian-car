@@ -7,40 +7,45 @@ local CarContext = require(script.Parent.Context.CarContext.CarContext)
 local BottomBar = require(script.Parent.components.BottomBar)
 local RadarAlarm = require(script.Parent.components.RadarAlarm)
 local SpeedTags = require(script.Parent.components.SpeedTags)
+local useContext = require(script.Parent.Context.Utils.useContext)
 
 local App = Roact.Component:extend("App")
 
 function App:render()
+	local withCtx = useContext({ CarContext = CarContext })
+
 	return Roact.createElement("ScreenGui", {
 		-- Roact owns this ScreenGui for the whole session; letting the engine
 		-- delete it on spawn would orphan the tree.
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 	}, {
-		RadarProvider = Roact.createElement(RadarProvider, {
-			radarClient = self.props.radarClient,
-		}, {
-			-- One overhead tag per vehicle on radar; the alarm sits beside them
-			-- so both read the same vehicle list from context.
-			SpeedTags = Roact.createElement(SpeedTags),
-			RadarAlarm = Roact.createElement(RadarAlarm),
-		}),
-		-- The bottom strip is the car dashboard: CarProvider tracks whether the
-		-- local player is driving a CarRegister car, and the consumer mounts the
-		-- BottomBar (with that car's plate) only while they are behind the wheel.
+		-- CarProvider is the outermost dashboard gate: whether the local player is
+		-- driving a CarRegister car decides the WHOLE readout. It wraps the radar
+		-- pieces so SpeedTags/RadarAlarm can read CarContext too and hide off the
+		-- wheel, and it wraps the BottomBar consumer. Nesting (not siblings) is
+		-- what puts CarContext in the radar components' ancestor chain.
 		CarProvider = Roact.createElement(CarProvider, {
 			carRegisterClient = self.props.carRegisterClient,
 		}, {
-			BottomBar = Roact.createElement(CarContext.Consumer, {
-				render = function(value)
-					if not value.isDriving then
-						return nil
-					end
-					return Roact.createElement(BottomBar, {
-						numberPlate = value.numberPlate,
-					})
-				end,
+			RadarProvider = Roact.createElement(RadarProvider, {
+				radarClient = self.props.radarClient,
+			}, {
+				-- One overhead tag per vehicle on radar; the alarm sits beside
+				-- them so both read the same vehicle list from context. Each also
+				-- reads CarContext and renders only while driving.
+				SpeedTags = Roact.createElement(SpeedTags),
+				RadarAlarm = Roact.createElement(RadarAlarm),
 			}),
+			BottomBar = withCtx(function(ctx)
+				local value = CarContext.Consumer
+				if not value.isDriving then
+					return nil
+				end
+				return Roact.createElement(BottomBar, {
+					numberPlate = value.numberPlate,
+				})
+			end),
 		}),
 	})
 end

@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Roact = require(ReplicatedStorage.Shared.Roact)
 
@@ -12,6 +13,10 @@ local GetCartNumberPlate = require(ReplicatedStorage.Nevermore.Custom.carRegiste
 
 local useContext = require(script.Parent.Parent.Context.Utils.useContext)
 local RadarContext = require(script.Parent.Parent.Context.RadarContext.RadarContext)
+local CarContext = require(script.Parent.Parent.Context.CarContext.CarContext)
+
+-- Keyboard toggle for the overhead tags: press this to show/hide them.
+local TOGGLE_KEY = Enum.KeyCode.V
 
 -- How often the readout refreshes speed/distance. Membership (which cars have
 -- a tag at all) is the provider's job; these are the live numbers inside one tag.
@@ -192,10 +197,40 @@ end
 
 local SpeedTags = Roact.Component:extend("SpeedTags")
 
+function SpeedTags:init()
+	self._maid = Maid.new()
+	-- The tags start on; TOGGLE_KEY flips this so the officer can clear the view.
+	self:setState({ enabled = true })
+end
+
+function SpeedTags:didMount()
+	self._maid:GiveTask(UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		-- Ignore the key when it's being typed into a text box / consumed by the
+		-- engine, so toggling doesn't fire mid-chat.
+		if gameProcessed then
+			return
+		end
+		if input.KeyCode == TOGGLE_KEY then
+			self:setState(function(previous)
+				return { enabled = not previous.enabled }
+			end)
+		end
+	end))
+end
+
+function SpeedTags:willUnmount()
+	self._maid:DoCleaning()
+end
+
 function SpeedTags:render()
-	local withCtx = useContext({ RadarContext = RadarContext })
+	local withCtx = useContext({ RadarContext = RadarContext, CarContext = CarContext })
 
 	return withCtx(function(ctx)
+		-- The radar belongs to the police car: show tags only while driving one,
+		-- and only when the officer hasn't toggled them off.
+		if not ctx.CarContext.isDriving or not self.state.enabled then
+			return nil
+		end
 		local radarCtx = ctx.RadarContext
 
 		local billboards: { [string]: any } = {}

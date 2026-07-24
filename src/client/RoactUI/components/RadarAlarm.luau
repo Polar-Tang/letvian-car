@@ -9,6 +9,7 @@ local RadarConstants = require(ReplicatedStorage.Nevermore.Custom.radar.src.Shar
 
 local useContext = require(script.Parent.Parent.Context.Utils.useContext)
 local RadarContext = require(script.Parent.Parent.Context.RadarContext.RadarContext)
+local CarContext = require(script.Parent.Parent.Context.CarContext.CarContext)
 
 -- Poll cadence for the over-limit check (matches the tags' readout refresh).
 local REFRESH_RATE = 10
@@ -76,9 +77,14 @@ end
 local RadarAlarm = Roact.Component:extend("RadarAlarm")
 
 function RadarAlarm:render()
-	local withCtx = useContext({ RadarContext = RadarContext })
+	local withCtx = useContext({ RadarContext = RadarContext, CarContext = CarContext })
 
 	return withCtx(function(ctx)
+		-- Only sound while the local player is driving a CarRegister car: the
+		-- radar is the police car's, so off the wheel there's nothing to alarm on.
+		if not ctx.CarContext.isDriving then
+			return nil
+		end
 		local radarCtx = ctx.RadarContext
 
 		return Roact.createElement(RadarAlarmView, {
