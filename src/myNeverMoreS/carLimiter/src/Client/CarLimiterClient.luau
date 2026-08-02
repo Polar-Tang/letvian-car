@@ -17,11 +17,10 @@
 -- cached table for that car's Tune module. Writing to it from the server, or
 -- from a different client, would land on a different copy and do nothing.
 --
--- Units: Tune.SpeedLimit is in the CHASSIS's km/h, which is not the same km/h
--- the radar readouts use -- A-Chassis scales by Units.Length_mm = 280 (1 stud =
--- 0.28 m) while Shared/Public/Units.luau assumes 1 stud = 0.3048 m, so a radar
--- reading runs ~8.9% above the number set here. The preset is written through
--- verbatim; reconciling the two scales is a separate job.
+-- Units: Tune.SpeedLimit is in km/h, and Shared/Public/Units.luau now copies
+-- A-Chassis' own scale (Units.Length_mm = 280, so 1 stud = 0.28 m) -- so a cap
+-- of 61 set here reads 61 on the radar tag, on the BottomBar and on the car's
+-- own speedometer alike. Presets are written through verbatim.
 --
 -- Which car is "ours" comes from CarRegisterClient's driven-car observable, the
 -- same source the BottomBar and the radar components gate on.
@@ -124,7 +123,7 @@ function CarLimiterClient:_apply()
 	-- Uncapping restores the car's shipped value rather than hard-zeroing, in
 	-- case this chassis was tuned with a limiter of its own.
 	tune.SpeedLimit = limitKmh or self._shippedLimit or NO_LIMIT
-
+	print(tune.SpeedLimit, "tune.SpeedLimit")
 	local car = self._car
 	if car then
 		car:SetAttribute(CarLimiterConstants.LIMIT_ATTRIBUTE, limitKmh)

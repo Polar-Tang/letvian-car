@@ -60,7 +60,7 @@ end
 
 function SpeedLimitPickerView:render()
 	local presets = CarLimiterConstants.PRESETS
-
+	print()
 	local children: { [string]: any } = {
 		Padding = Roact.createElement("UIPadding", {
 			PaddingTop = UDim.new(0, PANEL_PADDING),
