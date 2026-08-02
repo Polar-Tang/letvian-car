@@ -51,6 +51,13 @@ _G.BinderProvider = InitBinders
 -- Same object is returned here and after Start() -- it's just live by then.
 local binderProvider = serviceBag:GetService(_G.BinderProvider)
 
+----------------------------- services -----------------------------
+-- Server owner of the radar over-limit alarm Sound: the client (RadarAlarmView)
+-- decides WHEN it should sound and fires the RadarAlarm RemoteEvent; this service
+-- plays/destroys a looping Sound on the driven car so every nearby client hears
+-- it. Registered before Init() so the bag drives its Init/Start.
+serviceBag:GetService(Nevermore("RadarAlarmService"))
+
 ----------------------------- init process -----------------------------
 _G.FistBag = serviceBag
 

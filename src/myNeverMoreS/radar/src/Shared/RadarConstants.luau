@@ -8,9 +8,15 @@ return {
 	-- Tag for the police car itself (reserved for later server-side work).
 	POLICE_CAR_TAG = "PoliceCar",
 
-	-- Detection cone around the camera's look vector.
-	RANGE = 300, -- studs
-	FOV_DEGREES = 35, -- max angle off-centre before a vehicle drops off radar
+	-- RemoteEvent (under ReplicatedStorage.RemoteEvents) the client fires so the
+	-- SERVER plays/stops the over-limit alarm Sound on the driven car — so every
+	-- nearby client hears it. See radar/src/Server/RadarAlarmService and
+	-- RoactUI/components/RadarAlarm.
+	ALARM_REMOTE = "RadarAlarm",
+
+	-- How far the radar reaches from the camera. No aim cone — any tagged vehicle
+	-- within this range with a clear line of sight is detected (see RadarClient._scan).
+	RANGE = 500, -- studs
 
 	-- Scans per second.
 	SCAN_RATE = 10,

@@ -2,10 +2,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Roact = require(ReplicatedStorage.Shared.Roact)
 
 local CarContext = Roact.createContext({
-	-- Whether the local player is driving a CarRegister car right now, and that
-	-- car's plate. The BottomBar consumer mounts only while isDriving is true.
+	-- isDriving: is the local player in a CarRegister car's seat. numberPlate: that
+	-- car's plate. firstPersonActive: is first-person mode (V) on — the master
+	-- switch for the whole dashboard (SpeedTags / BottomBar / RadarAlarm). It can
+	-- only be true while driving (CarProvider gates the toggle and resets on exit).
 	isDriving = false,
 	numberPlate = "",
+	firstPersonActive = false,
 })
 
 return CarContext

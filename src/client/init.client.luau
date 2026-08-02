@@ -18,6 +18,11 @@ local radarClient = serviceBag:GetService(Nevermore("RadarClient"))
 -- VehicleSeat), so the BottomBar shows only while driving, with the car's plate.
 local carRegisterClient = serviceBag:GetService(Nevermore("CarRegisterClient"))
 
+-- Caps the driven car's speed at the preset the SpeedLimitPicker GUI selects.
+-- Registered AFTER CarRegisterClient so it is started after the driven-car
+-- observable it subscribes to in its own Start.
+local carLimiterClient = serviceBag:GetService(Nevermore("CarLimiterClient"))
+
 ----------------------------- init process -----------------------------
 serviceBag:Init()
 
@@ -31,4 +36,5 @@ local MainApp = require(script.RoactUI.MainApp)
 MainApp({
 	radarClient = radarClient,
 	carRegisterClient = carRegisterClient,
+	carLimiterClient = carLimiterClient,
 })

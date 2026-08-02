@@ -22,9 +22,9 @@ local PADDING_CHARS = 3
 
 -- The date, the clock and the velocity are live (velocity reads the local
 -- player's assembly for now — see readVelocity's TODO). The plate comes in as the
--- `numberPlate` prop (the driven car's NumberPlate); the rest are static
--- stand-ins; wire them to real data (unit ID, district) later.
-local LOCATION = "KVL TESTING PLACE"
+-- `numberPlate` prop (the driven car's NumberPlate); the coordinates are rolled
+-- once per mount (see randomCoordinate); the rest are static stand-ins; wire them
+-- to real data (unit ID, district) later.
 local UNIT = "KVL"
 -- Fallback plate if BottomBar is somehow mounted without a numberPlate prop; in
 -- practice the CarContext gate only mounts it while driving a plated car.
@@ -42,6 +42,13 @@ local SEPARATOR = "|"
 	@class BottomBar
 ]=]
 local BottomBar = Roact.Component:extend("BottomBar")
+
+-- One half of the GPS readout: eight digits with the decimal point after the
+-- first two, e.g. "56.937837". Rolled once at :init and then held for the life of
+-- the component, so the strip doesn't flicker through new numbers every frame.
+local function randomCoordinate(): string
+	return ("%02d.%06d"):format(math.random(10, 99), math.random(0, 999999))
+end
 
 -- Latvian-style stamps: dots in the date, colons in the clock.
 local function readClock()
@@ -72,6 +79,10 @@ function BottomBar:init()
 	-- respawn (the refresh connection lives on self._maid). Must run before the
 	-- first readVelocity so the initial state isn't a needless 0.
 	CharacterRoot.bind(self)
+
+	-- Plain field, not state: the pair never changes after this, so there's
+	-- nothing for a re-render to pick up.
+	self.location = ("%s %s"):format(randomCoordinate(), randomCoordinate())
 
 	local clock = readClock()
 	self:setState({
@@ -109,7 +120,7 @@ function BottomBar:render()
 		{ "Date", self.state.date, TEXT_COLOR },
 		{ "Time", self.state.time, TEXT_COLOR },
 		{ "Separator1", SEPARATOR, SEPARATOR_COLOR },
-		{ "Location", LOCATION, TEXT_COLOR },
+		{ "Location", self.location, TEXT_COLOR },
 		{ "Separator2", SEPARATOR, SEPARATOR_COLOR },
 		{ "Unit", UNIT, TEXT_COLOR },
 		{ "Separator3", SEPARATOR, SEPARATOR_COLOR },

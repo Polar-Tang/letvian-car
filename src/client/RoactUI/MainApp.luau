@@ -14,6 +14,10 @@ export type MainAppDeps = {
 	-- which subscribes to the observable driven-car and shows the BottomBar
 	-- (with the car's plate) only while the player is driving.
 	carRegisterClient: any,
+	-- The started CarLimiterClient service: the App hands it to the
+	-- SpeedLimitPicker, which reads the active cap from its observable and calls
+	-- SetLimit when a preset button is pressed.
+	carLimiterClient: any,
 }
 
 return function(deps: MainAppDeps)
@@ -24,6 +28,7 @@ return function(deps: MainAppDeps)
 		Roact.createElement(App, {
 			radarClient = deps.radarClient,
 			carRegisterClient = deps.carRegisterClient,
+			carLimiterClient = deps.carLimiterClient,
 		}),
 		playerGui,
 		"UI"

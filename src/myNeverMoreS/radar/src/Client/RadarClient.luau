@@ -1,8 +1,8 @@
 --!strict
--- Per-client radar scanner. Every RadarConstants.VEHICLE_TAG model that passes
--- the camera math (range + look-vector cone + line of sight) is kept in a
--- public observable list; RoactUI's RadarProvider subscribes to it and
--- re-renders the tree whenever the list changes.
+-- Per-client radar scanner. Every RadarConstants.VEHICLE_TAG model within range
+-- of the camera with a clear line of sight is kept in a public observable list
+-- (full-range — no aim cone, so a target stays tagged wherever it drives relative
+-- to the camera); RoactUI's RadarProvider subscribes to it and re-renders on change.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -83,18 +83,13 @@ function RadarClient:_scan(): { Model }
 		return {}
 	end
 
-	local cameraCFrame = camera.CFrame
-	local cameraPosition = cameraCFrame.Position
-	local lookDirection = cameraCFrame.LookVector
-	local cosThreshold = math.cos(math.rad(RadarConstants.FOV_DEGREES))
+	local cameraPosition = camera.CFrame.Position
 
-	-- One params object for the whole scan: the exclusions (our own character)
-	-- are constant across every candidate. self.root is the live HumanoidRootPart
-	-- (kept fresh by CharacterRoot); its parent is the character model to exclude.
+	-- One params object for the whole scan; the sight exclusions (our character and
+	-- the car we're driving) are constant across every candidate.
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
-	local character = self.root and self.root.Parent
-	params.FilterDescendantsInstances = if character then { character } else {}
+	params.FilterDescendantsInstances = self:_sightExclusions()
 
 	local detected: { Model } = {}
 	for _, instance in CollectionService:GetTagged(RadarConstants.VEHICLE_TAG) do
@@ -102,15 +97,10 @@ function RadarClient:_scan(): { Model }
 			continue
 		end
 
-		local toTarget = instance:GetPivot().Position - cameraPosition
-		local distance = toTarget.Magnitude
+		-- Full-range radar: any tagged vehicle within range that we can see. No aim
+		-- cone, so a target stays on radar wherever it moves relative to the camera.
+		local distance = (instance:GetPivot().Position - cameraPosition).Magnitude
 		if distance > RadarConstants.RANGE or distance <= 0 then
-			continue
-		end
-
-		-- Cone test: dot of the (unit) direction with the camera look vector.
-		-- Higher = more centred; below the threshold (or behind) is rejected.
-		if lookDirection:Dot(toTarget / distance) < cosThreshold then
 			continue
 		end
 
@@ -123,28 +113,54 @@ function RadarClient:_scan(): { Model }
 	return detected
 end
 
--- Line of sight is "can a thin line reach ANY part of the vehicle". One thin
--- ray per body part: each direction's magnitude is the exact distance to that
--- part, so a ray that arrives unobstructed — or whose first hit is the vehicle
--- itself — proves sight even when the rest of the body is behind cover.
+-- Raycast exclusions for the sight test: our own character and, when we're seated
+-- in one, the car we're driving — so neither our body nor our own vehicle can
+-- occlude the ray to a target. The own-car case matters now that detection is
+-- full-range (no cone): targets can sit right beside or behind us. self.root is
+-- the live HumanoidRootPart (kept fresh by CharacterRoot).
+function RadarClient:_sightExclusions(): { Instance }
+	local exclusions: { Instance } = {}
+	local character = self.root and self.root.Parent
+	if character then
+		table.insert(exclusions, character)
+
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if humanoid and humanoid:IsA("Humanoid") then
+			local seatPart = humanoid.SeatPart
+			if seatPart then
+				-- The seat's nearest Model ancestor is the car (an A-Chassis
+				-- DriveSeat is a direct child of the car model); excluding it drops
+				-- the whole vehicle from the rays.
+				local ownCar = seatPart:FindFirstAncestorWhichIsA("Model")
+				if ownCar then
+					table.insert(exclusions, ownCar)
+				end
+			end
+		end
+	end
+	return exclusions
+end
+
+-- Line of sight is "can a thin line reach the vehicle". The bounding-box centre is
+-- the cheap common case (a single cast): a ray that arrives unobstructed — or whose
+-- first hit is the vehicle itself — proves sight. Only if the centre is blocked do
+-- we walk the real parts (recursively — they nest under Body/Wheels sub-models), so
+-- a car that's mostly visible still counts. Short-circuits on the first part in view.
 function RadarClient:_hasLineOfSight(params: RaycastParams, origin: Vector3, vehicle: Model): boolean
-	local sawAnyPart = false
-	for _, part in vehicle:GetChildren() do
+	local centre = vehicle:GetPivot().Position
+	local result = workspace:Raycast(origin, centre - origin, params)
+	if not result or result.Instance:IsDescendantOf(vehicle) then
+		return true
+	end
+
+	for _, part in vehicle:GetDescendants() do
 		if not part:IsA("BasePart") then
 			continue
 		end
-		sawAnyPart = true
-
-		local result = workspace:Raycast(origin, part.Position - origin, params)
-		if not result or result.Instance:IsDescendantOf(vehicle) then
+		local hit = workspace:Raycast(origin, part.Position - origin, params)
+		if not hit or hit.Instance:IsDescendantOf(vehicle) then
 			return true
 		end
-	end
-
-	if not sawAnyPart then
-		-- Parts nested deeper than the model root: fall back to one ray at the pivot.
-		local result = workspace:Raycast(origin, vehicle:GetPivot().Position - origin, params)
-		return not result or result.Instance:IsDescendantOf(vehicle)
 	end
 	return false
 end

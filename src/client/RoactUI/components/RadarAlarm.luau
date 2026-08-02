@@ -3,7 +3,6 @@ local RunService = game:GetService("RunService")
 
 local Roact = require(ReplicatedStorage.Shared.Roact)
 
-local assets = require(ReplicatedStorage.Shared.Public.assets)
 local Units = require(ReplicatedStorage.Shared.Public.Units)
 local RadarConstants = require(ReplicatedStorage.Nevermore.Custom.radar.src.Shared.RadarConstants)
 
@@ -14,16 +13,34 @@ local CarContext = require(script.Parent.Parent.Context.CarContext.CarContext)
 -- Poll cadence for the over-limit check (matches the tags' readout refresh).
 local REFRESH_RATE = 10
 
+-- The RemoteEvent we fire so the SERVER plays/stops the alarm Sound on the driven
+-- car (RadarAlarmService owns it). Resolved lazily and memoised — waiting here
+-- rather than at module load keeps a slow-to-replicate remote from stalling the
+-- whole App tree's mount, and the first fire only happens once a target speeds.
+local alarmRemote: RemoteEvent? = nil
+local function getAlarmRemote(): RemoteEvent
+	if not alarmRemote then
+		local folder = ReplicatedStorage:WaitForChild("RemoteEvents")
+		alarmRemote = folder:WaitForChild(RadarConstants.ALARM_REMOTE) :: RemoteEvent
+	end
+	return alarmRemote :: RemoteEvent
+end
+
 --[=[
-	One global looping alarm, deduped across targets: it plays while ANY vehicle
-	on radar is at or over RadarConstants.SPEED_LIMIT and stops once every
-	target has dropped back under — stacking one Sound per speeder would chorus.
+	The over-limit alarm — now server-driven. This client owns only the DECISION:
+	it polls the radar list and, on each on/off edge, fires the alarm RemoteEvent
+	with a boolean. The server plays a single looping Sound parented to the police
+	car (positional, replicated to everyone) and destroys it on `false`. One fire
+	when any target crosses the limit, one when the last drops back under — or when
+	this unmounts (we stop driving), so the car's alarm never outlives the loop.
 	@class RadarAlarmView
 ]=]
 local RadarAlarmView = Roact.Component:extend("RadarAlarmView")
 
 function RadarAlarmView:init()
-	self:setState({ active = false })
+	-- Plain field, not state: the alarm renders nothing now, so this only exists to
+	-- detect the on/off edge and fire the remote once per change.
+	self._active = false
 end
 
 function RadarAlarmView:_anyOverLimit(): boolean
@@ -41,6 +58,15 @@ function RadarAlarmView:_anyOverLimit(): boolean
 	return false
 end
 
+-- Tell the server only on a change, so it gets one "play" then one "stop".
+function RadarAlarmView:_setActive(active: boolean)
+	if active == self._active then
+		return
+	end
+	self._active = active
+	getAlarmRemote():FireServer(active)
+end
+
 function RadarAlarmView:didMount()
 	local sinceLastCheck = 0
 	self._connection = RunService.Heartbeat:Connect(function(deltaTime)
@@ -50,12 +76,9 @@ function RadarAlarmView:didMount()
 		end
 		sinceLastCheck = 0
 
-		-- The heartbeat reads props live, so a membership change from the
-		-- provider is picked up on the next tick without re-subscribing.
-		local active = self:_anyOverLimit()
-		if active ~= self.state.active then
-			self:setState({ active = active })
-		end
+		-- The heartbeat reads props live, so a membership change from the provider
+		-- is picked up on the next tick without re-subscribing.
+		self:_setActive(self:_anyOverLimit())
 	end)
 end
 
@@ -64,14 +87,14 @@ function RadarAlarmView:willUnmount()
 		self._connection:Disconnect()
 		self._connection = nil
 	end
+	-- Leaving mid-blare (stopped driving, list gone): silence the car so the
+	-- server's Sound doesn't outlive our decision loop.
+	self:_setActive(false)
 end
 
 function RadarAlarmView:render()
-	return Roact.createElement("Sound", {
-		SoundId = assets.radar.warnSound,
-		Looped = true,
-		Playing = self.state.active,
-	})
+	-- Nothing on the client anymore — the Sound lives on the car (server-side).
+	return nil
 end
 
 local RadarAlarm = Roact.Component:extend("RadarAlarm")
@@ -80,9 +103,11 @@ function RadarAlarm:render()
 	local withCtx = useContext({ RadarContext = RadarContext, CarContext = CarContext })
 
 	return withCtx(function(ctx)
-		-- Only sound while the local player is driving a CarRegister car: the
-		-- radar is the police car's, so off the wheel there's nothing to alarm on.
-		if not ctx.CarContext.isDriving then
+		-- First-person mode (V) is the master switch: run the decision loop — and let
+		-- the server sound the alarm — only while it's active. When V turns off this
+		-- returns nil, RadarAlarmView unmounts, and its willUnmount fires the "stop",
+		-- silencing the car's alarm. firstPersonActive implies driving.
+		if not ctx.CarContext.firstPersonActive then
 			return nil
 		end
 		local radarCtx = ctx.RadarContext

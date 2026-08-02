@@ -5,6 +5,7 @@ local RadarProvider = require(script.Parent.Context.RadarContext.RadarProvider)
 local CarProvider = require(script.Parent.Context.CarContext.CarProvider)
 local CarContext = require(script.Parent.Context.CarContext.CarContext)
 local BottomBar = require(script.Parent.components.BottomBar)
+local SpeedLimitPicker = require(script.Parent.components.SpeedLimitPicker)
 local RadarAlarm = require(script.Parent.components.RadarAlarm)
 local SpeedTags = require(script.Parent.components.SpeedTags)
 local useContext = require(script.Parent.Context.Utils.useContext)
@@ -37,9 +38,16 @@ function App:render()
 				SpeedTags = Roact.createElement(SpeedTags),
 				RadarAlarm = Roact.createElement(RadarAlarm),
 			}),
+			-- Caps the driven car at 61 / 110 km/h. A sibling of the BottomBar
+			-- rather than a child of it: it does its own CarContext gate, so it
+			-- needs no value from this consumer.
+			SpeedLimitPicker = Roact.createElement(SpeedLimitPicker, {
+				carLimiterClient = self.props.carLimiterClient,
+			}),
 			BottomBar = withCtx(function(ctx)
-				local value = CarContext.Consumer
-				if not value.isDriving then
+				local value = ctx.CarContext
+				-- First-person mode (V) is the master switch; it implies driving.
+				if not value.firstPersonActive then
 					return nil
 				end
 				return Roact.createElement(BottomBar, {
